@@ -10,7 +10,8 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"test": "node --experimental-strip-types --import ./tests/register.mjs tests/analysis.test.ts"
+		"test": "node --experimental-strip-types --import ./tests/register.mjs tests/analysis.test.ts",
+		"images": "node scripts/make-images.mjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-netlify": "^6.0.4",

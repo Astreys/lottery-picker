@@ -280,7 +280,11 @@
 			<section class="panel">
 				<h2>Your picks</h2>
 				{#each picks as p, i (i)}
-					<div class="line">
+					<div
+						class="line"
+						aria-label={`Set ${i + 1}: ${p.numbers.join(', ')}` +
+							(p.grand !== null ? `, ${game.bonusLabel} ${p.grand}` : '')}
+					>
 						{#each p.numbers as n, j (n)}
 							<span class="ball {p.bands[j]}">{n}</span>
 						{/each}
@@ -316,10 +320,14 @@
 				<table>
 					<thead>
 						<tr>
-							<th><button class="link" onclick={() => (sortBy = 'n')}>Number</button></th>
-							<th><button class="link" onclick={() => (sortBy = 'count')}>Times drawn</button></th>
-							<th class="barcol"></th>
-							<th>
+							<th aria-sort={sortBy === 'n' ? 'ascending' : 'none'}>
+								<button class="link" onclick={() => (sortBy = 'n')}>Number</button>
+							</th>
+							<th aria-sort={sortBy === 'count' ? 'descending' : 'none'}>
+								<button class="link" onclick={() => (sortBy = 'count')}>Times drawn</button>
+							</th>
+							<th class="barcol"><span class="sr-only">Relative frequency</span></th>
+							<th aria-sort={sortBy === 'gap' ? 'descending' : 'none'}>
 								<button class="link" onclick={() => (sortBy = 'gap')}>Draws since seen</button>
 							</th>
 							<th>Frequency</th>
@@ -391,6 +399,59 @@
 			</p>
 		</section>
 	{/if}
+
+	<!-- Always rendered: explains the tool to a first-time visitor, and gives
+	     search engines something to read on a page that is otherwise controls. -->
+	<footer class="about">
+		<section>
+			<h2>How the bands work</h2>
+			<p>
+				Every number is measured two independent ways over the draws you choose to analyse, and
+				both are shown side by side so you can see where they disagree.
+			</p>
+			<dl>
+				<dt>Frequency</dt>
+				<dd>
+					How often a number came up in the window. The most-drawn third are <strong>hot</strong>,
+					the least-drawn third <strong>cold</strong>, the rest <strong>regular</strong>.
+				</dd>
+				<dt>Recency</dt>
+				<dd>
+					How many draws since a number last appeared. The longest gaps are the
+					<strong>overdue</strong> end. A number can easily be cold by frequency but hot by
+					recency, or the other way round.
+				</dd>
+			</dl>
+			<p>
+				A set takes some numbers from each band. You choose the split, which of the two readings
+				drives it, and how far back to look — 50, 100, 200 or 500 draws, or the whole history.
+			</p>
+		</section>
+
+		<section>
+			<h2>Games covered</h2>
+			<ul class="games">
+				{#each GAMES as g (g.id)}
+					<li>
+						<strong>{g.name}</strong> — pick {g.pick} from 1–{g.max}{#if g.bonusMax}, plus a
+							{g.bonusLabel?.toLowerCase()} from its own 1–{g.bonusMax} pool{/if}
+					</li>
+				{/each}
+			</ul>
+			<p class="muted">
+				Draw history is fetched from lotto-8.com, or read from a text file you upload.
+			</p>
+		</section>
+
+		<section>
+			<h2>About the odds</h2>
+			<p>
+				Lottery draws are independent events. A number being hot, cold or overdue tells you nothing
+				about the next draw, and no arrangement of these bands changes the odds of any ticket. This
+				is a tool for picking numbers in a way that feels considered — not a system for winning.
+			</p>
+		</section>
+	</footer>
 </main>
 
 <style>
@@ -434,5 +495,46 @@
 	}
 	th button.link:hover {
 		color: var(--accent);
+	}
+
+	.about {
+		margin-top: 2.5rem;
+		padding-top: 1.75rem;
+		border-top: 1px solid var(--line);
+		color: var(--muted);
+		font-size: 0.9rem;
+		display: grid;
+		gap: 1.75rem;
+	}
+	.about :global(h2) {
+		margin-bottom: 0.5rem;
+	}
+	.about p {
+		margin: 0 0 0.6rem;
+		max-width: 62ch;
+	}
+	.about strong {
+		color: var(--ink);
+		font-weight: 600;
+	}
+	.about dl {
+		margin: 0 0 0.6rem;
+		max-width: 62ch;
+	}
+	.about dt {
+		color: var(--ink);
+		font-weight: 600;
+		margin-top: 0.5rem;
+	}
+	.about dd {
+		margin: 0.15rem 0 0;
+	}
+	.games {
+		margin: 0 0 0.6rem;
+		padding-left: 1.1rem;
+		max-width: 62ch;
+	}
+	.games li {
+		margin-bottom: 0.2rem;
 	}
 </style>
