@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lotto Frequency Analyzer</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+  .cat { padding: 8px; border-radius: 8px; margin-bottom: 10px; }
+  .hot { background: #fae; } .hot { background: #faece7; }
+  .reg { background: #f1efe8; }
+  .cold { background: #e6f1fb; }
+  .chip { display: inline-block; padding: 3px 9px; margin: 3px 4px 3px 0; border-radius: 6px; background: rgba(0,0,0,.06); font-size: 14px; }
+  .out { font-size: 24px; font-weight: 600; margin: 12px 0; }
+  button { padding: 8px 16px; font-size: 15px; cursor: pointer; }
+  table { border-collapse: collapse; font-size: 14px; }
+  td { padding: 2px 12px 2px 0; }
+  .muted { color: #666; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h1>Lotto frequency analyzer</h1>
+
+<p><input type="file" id="file" accept=".txt,.csv"></p>
+
+<p class="muted">
+  Numbers per draw: <input type="number" id="perDraw" value="7" min="1" max="10" style="width:60px">
+  &nbsp; Max number: <input type="number" id="maxNum" value="52" min="10" max="99" style="width:60px">
+</p>
+
+<div id="report"></div>
+
+<script>
+let counts = {}, draws = 0, hot = [], cold = [], reg = [];
+
+document.getElementById('file').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => analyze(ev.target.result);
+  r.readAsText(f);
+});
+
+['perDraw','maxNum'].forEach(id =>
+  document.getElementById(id).addEventListener('change', () => {
+    const f = document.getElementById('file').files[0];
+    if (f) { const r = new FileReader(); r.onload = ev => analyze(ev.target.result); r.readAsText(f); }
+  })
+);
+
+function analyze(text) {
+  const perDraw = +document.getElementById('perDraw').value;
+  const maxNum  = +document.getElementById('maxNum').value;
+
+  counts = {}; draws = 0;
+  for (let i = 1; i <= maxNum; i++) counts[i] = 0;
+
+  text.split(/\r?\n/).forEach(line => {
+    const nums = (line.match(/\d+/g) || []).map(Number);
+    if (nums.length < perDraw) return;
+    draws++;
+    nums.slice(0, perDraw).forEach(n => { if (n >= 1 && n <= maxNum) counts[n]++; });
+  });
+
+  const all = Object.keys(counts).map(n => ({ n: +n, c: counts[n] }));
+  const ranked = [...all].sort((a, b) => b.c - a.c || a.n - b.n);
+  const third = Math.floor(ranked.length / 3);
+
+  const asc = arr => arr.map(o => o.n).sort((a, b) => a - b);
+  hot  = asc(ranked.slice(0, third));
+  reg  = asc(ranked.slice(third, ranked.length - third));
+  cold = asc(ranked.slice(ranked.length - third));
+
+  render(ranked);
+  generate();
+}
+
+function chips(list) {
+  return list.map(n => `<span class="chip">${n} <small>(${counts[n]})</small></span>`).join('');
+}
+
+function render(ranked) {
+  document.getElementById('report').innerHTML = `
+    <p class="muted">${draws} draws parsed &middot; ${draws * +document.getElementById('perDraw').value} total picks</p>
+    <div class="cat hot"><strong>Hot</strong><br>${chips(hot)}</div>
+    <div class="cat reg"><strong>Regular</strong><br>${chips(reg)}</div>
+    <div class="cat cold"><strong>Cold</strong><br>${chips(cold)}</div>
+    <button id="gen">Generate a set</button>
+    <div class="out" id="out"></div>
+    <div class="muted" id="dist"></div>
+    <h3>Full frequency count</h3>
+    <table>${ranked.map(o => `<tr><td>${o.n}</td><td>${o.c}</td></tr>`).join('')}</table>
+  `;
+  document.getElementById('gen').addEventListener('click', generate);
+}
+
+function pick(arr, k) {
+  const copy = [...arr], out = [];
+  for (let i = 0; i < k && copy.length; i++)
+    out.push(copy.splice(Math.floor(Math.random() * copy.length), 1)[0]);
+  return out;
+}
+
+function generate() {
+  const set = [...pick(hot, 2), ...pick(cold, 2), ...pick(reg, 3)].sort((a, b) => a - b);
+  const maxNum = +document.getElementById('maxNum').value;
+  const mid = Math.ceil(maxNum / 2);
+  const low = set.filter(n => n <= mid).length;
+  document.getElementById('out').textContent = set.join(', ');
+  document.getElementById('dist').textContent =
+    `${low} from 1–${mid}, ${set.length - low} from ${mid + 1}–${maxNum}`;
+}
+</script>
+</body>
+</html>
