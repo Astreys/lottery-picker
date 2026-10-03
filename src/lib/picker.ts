@@ -112,6 +112,16 @@ export function generate(
 	};
 }
 
+/** "11 - 23 - 24 - 27 - 38 - 49", with " + 3" for a grand number. */
+export function formatPick(p: Pick): string {
+	return p.numbers.join(' - ') + (p.grand !== null ? ` + ${p.grand}` : '');
+}
+
+/** Every set, one per line, ready for the clipboard. */
+export function formatPicks(picks: Pick[]): string {
+	return picks.map(formatPick).join('\n');
+}
+
 /**
  * Draw the extra ball from its own pool. Bands here are thin — Daily Grand's
  * grand number has only seven candidates — so an empty band falls back to the

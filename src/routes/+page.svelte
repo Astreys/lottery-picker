@@ -6,6 +6,8 @@
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import {
 		defaultRecipe,
+		formatPick,
+		formatPicks,
 		generateMany,
 		type BandChoice,
 		type Metric,
@@ -27,6 +29,9 @@
 	let picks = $state<Pick[]>([]);
 	let sortBy = $state<'n' | 'count' | 'gap'>('n');
 	let grandChoice = $state<BandChoice>('any');
+	/** Which copy button last succeeded: a set index, 'all', or null. */
+	let copied = $state<number | 'all' | null>(null);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 	/** 0 means "every draw we have". */
 	const WINDOWS = [50, 100, 200, 500, 0];
@@ -126,6 +131,7 @@
 	function roll() {
 		if (!analysis) return;
 		picks = generateMany(analysis, metric, recipe, game.max, lines, bonusOptions);
+		copied = null;
 		track('generate', {
 			game: game.id,
 			metric,
@@ -136,11 +142,16 @@
 		});
 	}
 
-	function copy() {
-		const text = picks
-			.map((p) => p.numbers.join('  ') + (p.grand !== null ? `  +  ${p.grand}` : ''))
-			.join('\n');
-		navigator.clipboard?.writeText(text);
+	async function copy(which: number | 'all') {
+		const text = which === 'all' ? formatPicks(picks) : formatPick(picks[which]);
+		try {
+			await navigator.clipboard.writeText(text);
+			copied = which;
+			clearTimeout(copiedTimer);
+			copiedTimer = setTimeout(() => (copied = null), 1500);
+		} catch {
+			err = 'Could not copy — your browser blocked clipboard access.';
+		}
 	}
 </script>
 
@@ -299,12 +310,23 @@
 						<span class="meta">
 							{p.low} low / {p.numbers.length - p.low} high · {p.odd} odd · sum {p.sum}
 						</span>
+						<button
+							class="copy-one"
+							onclick={() => copy(i)}
+							aria-label={`Copy set ${i + 1}: ${formatPick(p)}`}
+							title={formatPick(p)}
+						>
+							{copied === i ? 'Copied' : 'Copy'}
+						</button>
 					</div>
 				{/each}
 				<div class="buttons spaced">
 					<button onclick={roll}>Generate again</button>
-					<button onclick={copy}>Copy</button>
+					<button onclick={() => copy('all')}>{copied === 'all' ? 'Copied!' : 'Copy all'}</button>
 				</div>
+				<p class="sr-only" aria-live="polite">
+					{copied === null ? '' : copied === 'all' ? 'All sets copied' : `Set ${copied + 1} copied`}
+				</p>
 				<p class="muted note">
 					Ball colour shows which band each number came from.
 					{#if grandAnalysis && game.bonusLabel}
@@ -468,6 +490,12 @@
 	.buttons {
 		display: flex;
 		gap: 0.5rem;
+	}
+	.copy-one {
+		margin-left: 0.75rem;
+		padding: 0.2rem 0.6rem;
+		font-size: 0.78rem;
+		min-width: 4.5rem;
 	}
 	.spaced {
 		margin-top: 0.9rem;
