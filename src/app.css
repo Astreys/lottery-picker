@@ -13,11 +13,15 @@
 	--cold: #1d5b96;
 	--cold-bg: #e6f0fa;
 
-	color-scheme: light dark;
+	--err: #b91c1c;
+
+	color-scheme: light;
 }
 
+/* Dark tokens apply when the system is dark and the user has not chosen light,
+   or when the user has chosen dark. The two blocks must stay identical. */
 @media (prefers-color-scheme: dark) {
-	:root {
+	:root:not([data-theme="light"]) {
 		--bg: #171614;
 		--panel: #201f1c;
 		--line: #35322d;
@@ -31,7 +35,31 @@
 		--reg-bg: #2a2825;
 		--cold: #7db4e6;
 		--cold-bg: #16283a;
+
+		--err: #f87171;
+
+		color-scheme: dark;
 	}
+}
+
+:root[data-theme="dark"] {
+	--bg: #171614;
+	--panel: #201f1c;
+	--line: #35322d;
+	--ink: #eceae5;
+	--muted: #9d968c;
+	--accent: #6ba8d8;
+
+	--hot: #f59e6b;
+	--hot-bg: #3a2117;
+	--reg: #b8b2a8;
+	--reg-bg: #2a2825;
+	--cold: #7db4e6;
+	--cold-bg: #16283a;
+
+	--err: #f87171;
+
+	color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -102,9 +130,19 @@ button.primary {
 }
 button.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
 
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.seg button { border: 0; border-radius: 0; padding: 0.4rem 0.85rem; background: var(--panel); }
-.seg button + button { border-left: 1px solid var(--line); }
+/* Dividers are 1px gaps showing the border colour behind, so they stay right
+   however the buttons wrap on a narrow screen. */
+.seg {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 1px;
+	align-self: flex-start;
+	background: var(--line);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	overflow: hidden;
+}
+.seg button { flex: 1 0 auto; border: 0; border-radius: 0; padding: 0.4rem 0.85rem; background: var(--panel); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 
 .chip {
@@ -147,8 +185,7 @@ td { font-variant-numeric: tabular-nums; }
 
 .scroll { overflow-x: auto; }
 .muted { color: var(--muted); font-size: 0.83rem; }
-.err { color: #b91c1c; }
-@media (prefers-color-scheme: dark) { .err { color: #f87171; } }
+.err { color: var(--err); }
 
 .bar { height: 4px; border-radius: 2px; background: var(--accent); opacity: 0.55; }
 
