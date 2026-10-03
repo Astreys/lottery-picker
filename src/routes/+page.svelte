@@ -1,18 +1,20 @@
 <script lang="ts">
 	import { GAMES, type Game } from '$lib/games';
 	import { parseText, type Draw } from '$lib/parse';
-	import { analyse, bonusHistory, type Analysis } from '$lib/stats';
+	import { analyse, bonusHistory, pairCounts, type Analysis } from '$lib/stats';
 	import { track } from '$lib/analytics';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import {
+		STRATEGIES,
 		defaultRecipe,
 		formatPick,
 		formatPicks,
-		generateMany,
+		pickMany,
 		type BandChoice,
 		type Metric,
 		type Pick,
-		type Recipe
+		type Recipe,
+		type Strategy
 	} from '$lib/picker';
 
 	let game = $state<Game>(GAMES[0]);
@@ -29,6 +31,8 @@
 	let picks = $state<Pick[]>([]);
 	let sortBy = $state<'n' | 'count' | 'gap'>('n');
 	let grandChoice = $state<BandChoice>('any');
+	let strategy = $state<Strategy>('bands');
+	let balanced = $state(false);
 	/** Which copy button last succeeded: a set index, 'all', or null. */
 	let copied = $state<number | 'all' | null>(null);
 	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -65,6 +69,14 @@
 
 	const recipeTotal = $derived(recipe.hot + recipe.regular + recipe.cold);
 	const recipeOk = $derived(recipeTotal === game.pick);
+	/** The split only matters to the band strategy; the others always pick game.pick. */
+	const canGenerate = $derived(strategy !== 'bands' || recipeOk);
+	const strategyInfo = $derived(STRATEGIES.find((s) => s.id === strategy)!);
+
+	/** Only built when the companions strategy needs it — it is max² cells. */
+	const pairs = $derived(
+		strategy === 'pairs' && draws.length ? pairCounts(draws, game.max, effectiveWindow) : undefined
+	);
 
 	const rows = $derived(
 		analysis
@@ -129,16 +141,31 @@
 	}
 
 	function roll() {
-		if (!analysis) return;
-		picks = generateMany(analysis, metric, recipe, game.max, lines, bonusOptions);
+		if (!analysis || !canGenerate) return;
+		picks = pickMany(
+			analysis,
+			{
+				strategy,
+				metric,
+				recipe,
+				pick: game.pick,
+				max: game.max,
+				balanced,
+				bonus: bonusOptions,
+				pairs
+			},
+			lines
+		);
 		copied = null;
 		track('generate', {
 			game: game.id,
+			strategy,
 			metric,
 			window: analysis.window,
 			sets: picks.length,
+			balanced: balanced ? 1 : 0,
 			// Recorded as one string so the split reads as a single dimension in GA.
-			split: `${recipe.hot}-${recipe.regular}-${recipe.cold}`
+			split: strategy === 'bands' ? `${recipe.hot}-${recipe.regular}-${recipe.cold}` : 'n/a'
 		});
 	}
 
@@ -248,20 +275,34 @@
 
 		<section class="panel">
 			<h2>Set composition</h2>
-			<div class="row">
-				{#each BANDS as [key, label] (key)}
-					<label class="field">
-						<span>{label}</span>
-						<input
-							type="number"
-							min="0"
-							max={game.pick}
-							class="tiny"
-							value={recipe[key]}
-							onchange={(e) => setBand(key, +e.currentTarget.value)}
-						/>
-					</label>
-				{/each}
+			<div class="field">
+				<span>Strategy</span>
+				<div class="seg" role="group" aria-label="Strategy">
+					{#each STRATEGIES as s (s.id)}
+						<button aria-pressed={strategy === s.id} onclick={() => (strategy = s.id)}>
+							{s.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+			<p class="muted note">{strategyInfo.blurb}</p>
+
+			<div class="row spaced">
+				{#if strategy === 'bands'}
+					{#each BANDS as [key, label] (key)}
+						<label class="field">
+							<span>{label}</span>
+							<input
+								type="number"
+								min="0"
+								max={game.pick}
+								class="tiny"
+								value={recipe[key]}
+								onchange={(e) => setBand(key, +e.currentTarget.value)}
+							/>
+						</label>
+					{/each}
+				{/if}
 
 				{#if grandAnalysis && game.bonusLabel}
 					<div class="field">
@@ -281,10 +322,15 @@
 					<input type="number" min="1" max="20" class="tiny" bind:value={lines} />
 				</label>
 
-				<button class="primary" onclick={roll} disabled={!recipeOk}>Generate</button>
+				<label class="check">
+					<input type="checkbox" bind:checked={balanced} />
+					<span>Balanced odd/even and low/high</span>
+				</label>
+
+				<button class="primary" onclick={roll} disabled={!canGenerate}>Generate</button>
 			</div>
 
-			{#if !recipeOk}
+			{#if strategy === 'bands' && !recipeOk}
 				<p class="err note">
 					{game.name} draws {game.pick} numbers — your split adds up to {recipeTotal}.
 				</p>
@@ -328,7 +374,7 @@
 					{copied === null ? '' : copied === 'all' ? 'All sets copied' : `Set ${copied + 1} copied`}
 				</p>
 				<p class="muted note">
-					Ball colour shows which band each number came from.
+					Ball colour shows the band each number sits in.
 					{#if grandAnalysis && game.bonusLabel}
 						The outlined ball is the {game.bonusLabel.toLowerCase()}, drawn from its own 1–{game.bonusMax}
 						pool.
@@ -455,6 +501,20 @@
 		</section>
 
 		<section>
+			<h2>Strategies</h2>
+			<dl>
+				{#each STRATEGIES as s (s.id)}
+					<dt>{s.label}</dt>
+					<dd>{s.blurb}</dd>
+				{/each}
+			</dl>
+			<p>
+				Any strategy can also be kept <strong>balanced</strong>: sets that lean too far towards odd
+				or even, or low or high numbers, are thrown out and drawn again.
+			</p>
+		</section>
+
+		<section>
 			<h2>Games covered</h2>
 			<ul class="games">
 				{#each GAMES as g (g.id)}
@@ -490,6 +550,17 @@
 	.buttons {
 		display: flex;
 		gap: 0.5rem;
+	}
+	.check {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.85rem;
+		padding-bottom: 0.45rem;
+		cursor: pointer;
+	}
+	.check input {
+		accent-color: var(--accent);
 	}
 	.copy-one {
 		margin-left: 0.75rem;
