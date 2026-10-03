@@ -42,10 +42,28 @@ Requires Node.js 22 or newer.
 ```sh
 npm install
 npm run dev      # http://localhost:5173
-npm test         # analysis and picker checks against real fixtures
 npm run check    # type check
 npm run build
 ```
+
+## Tests
+
+```sh
+npm test                 # everything: unit, then end-to-end
+npm run test:unit        # Vitest, in tests/unit
+npm run test:coverage    # unit tests with a coverage report
+npm run test:e2e         # Playwright, in tests/e2e
+```
+
+The unit tests cover everything in `src/lib` and the server routes, using
+real draw histories saved in `tests/fixtures`. The end-to-end tests drive the
+production build in Chromium at desktop and phone sizes. The draws API is
+served from the same fixtures and Google Analytics is blocked, so the tests
+never touch lotto-8.com or send analytics. The first run needs a browser:
+`npx playwright install chromium`.
+
+GitHub Actions runs the type check and both suites on every push to `main`
+or `develop` and on every pull request.
 
 No configuration is needed to run it locally. Draw history is cached in
 memory when Netlify Blobs isn't available.
@@ -85,7 +103,9 @@ cached in Netlify Blobs, which Netlify provisions automatically.
 | `src/lib/analytics.ts` | GA4 loader and event helper. |
 | `src/lib/server/` | Scraper and the Blobs-backed cache. |
 | `src/routes/api/draws/[game]/` | The endpoint the browser calls. |
-| `tests/` | Checks and fixtures of real draw history. |
+| `tests/unit/` | Vitest unit tests. |
+| `tests/e2e/` | Playwright end-to-end tests. |
+| `tests/fixtures/` | Real draw histories the tests run against. |
 | `reference/index-v0.html` | The original single-file prototype. |
 
 ### Adding a game
