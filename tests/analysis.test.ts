@@ -9,7 +9,7 @@ const check = (label: string, ok: boolean, detail = '') => {
 	if (!ok) failures++;
 };
 
-// ---- File-upload path, against the user's real sample file -------------------
+// ---- File-upload path, against the sample file in uploads/ -------------------
 const text = readFileSync('uploads/lotto-max.txt', 'utf8');
 const fileDraws = parseText(text, 7);
 check('parses uploads/lotto-max.txt', fileDraws.length === 335, `${fileDraws.length} draws`);
