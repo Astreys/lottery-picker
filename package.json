@@ -1,7 +1,14 @@
 {
 	"name": "lottery-picker",
 	"private": true,
-	"version": "0.0.1",
+	"version": "0.1.0",
+	"description": "Hot, cold and overdue number analysis for Canadian lottery draws.",
+	"author": "Sasha Chernyavsky",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Astreys/lottery-picker.git"
+	},
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -10,10 +17,13 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"test": "node --experimental-strip-types --import ./tests/register.mjs tests/analysis.test.ts",
+		"test": "npm run test:unit && npm run test:e2e",
+		"test:unit": "vitest run",
+		"test:e2e": "playwright test",
 		"images": "node scripts/make-images.mjs"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.63.0",
 		"@sveltejs/adapter-netlify": "^6.0.4",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -21,7 +31,8 @@
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
-		"vite": "^8.0.16"
+		"vite": "^8.0.16",
+		"vitest": "^5.0.3"
 	},
 	"dependencies": {
 		"@netlify/blobs": "^11.0.3"

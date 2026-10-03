@@ -1,15 +1,20 @@
 <script lang="ts">
 	import { GAMES, type Game } from '$lib/games';
 	import { parseText, type Draw } from '$lib/parse';
-	import { analyse, bonusHistory, type Analysis } from '$lib/stats';
+	import { analyse, bonusHistory, pairCounts, type Analysis } from '$lib/stats';
 	import { track } from '$lib/analytics';
+	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import {
+		STRATEGIES,
 		defaultRecipe,
-		generateMany,
+		formatPick,
+		formatPicks,
+		pickMany,
 		type BandChoice,
 		type Metric,
 		type Pick,
-		type Recipe
+		type Recipe,
+		type Strategy
 	} from '$lib/picker';
 
 	let game = $state<Game>(GAMES[0]);
@@ -26,6 +31,11 @@
 	let picks = $state<Pick[]>([]);
 	let sortBy = $state<'n' | 'count' | 'gap'>('n');
 	let grandChoice = $state<BandChoice>('any');
+	let strategy = $state<Strategy>('bands');
+	let balanced = $state(false);
+	/** Which copy button last succeeded: a set index, 'all', or null. */
+	let copied = $state<number | 'all' | null>(null);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 	/** 0 means "every draw we have". */
 	const WINDOWS = [50, 100, 200, 500, 0];
@@ -59,6 +69,13 @@
 
 	const recipeTotal = $derived(recipe.hot + recipe.regular + recipe.cold);
 	const recipeOk = $derived(recipeTotal === game.pick);
+	const canGenerate = $derived(strategy !== 'bands' || recipeOk);
+	const strategyInfo = $derived(STRATEGIES.find((s) => s.id === strategy)!);
+
+	/** Only built when the companions strategy needs it — it is max² cells. */
+	const pairs = $derived(
+		strategy === 'pairs' && draws.length ? pairCounts(draws, game.max, effectiveWindow) : undefined
+	);
 
 	const rows = $derived(
 		analysis
@@ -123,28 +140,52 @@
 	}
 
 	function roll() {
-		if (!analysis) return;
-		picks = generateMany(analysis, metric, recipe, game.max, lines, bonusOptions);
+		if (!analysis || !canGenerate) return;
+		picks = pickMany(
+			analysis,
+			{
+				strategy,
+				metric,
+				recipe,
+				pick: game.pick,
+				max: game.max,
+				balanced,
+				bonus: bonusOptions,
+				pairs
+			},
+			lines
+		);
+		copied = null;
 		track('generate', {
 			game: game.id,
+			strategy,
 			metric,
 			window: analysis.window,
 			sets: picks.length,
+			balanced: balanced ? 1 : 0,
 			// Recorded as one string so the split reads as a single dimension in GA.
-			split: `${recipe.hot}-${recipe.regular}-${recipe.cold}`
+			split: strategy === 'bands' ? `${recipe.hot}-${recipe.regular}-${recipe.cold}` : 'n/a'
 		});
 	}
 
-	function copy() {
-		const text = picks
-			.map((p) => p.numbers.join('  ') + (p.grand !== null ? `  +  ${p.grand}` : ''))
-			.join('\n');
-		navigator.clipboard?.writeText(text);
+	async function copy(which: number | 'all') {
+		const text = which === 'all' ? formatPicks(picks) : formatPick(picks[which]);
+		try {
+			await navigator.clipboard.writeText(text);
+			copied = which;
+			clearTimeout(copiedTimer);
+			copiedTimer = setTimeout(() => (copied = null), 1500);
+		} catch {
+			err = 'Could not copy — your browser blocked clipboard access.';
+		}
 	}
 </script>
 
 <main>
-	<h1>Lottery number picker</h1>
+	<header class="top">
+		<h1>Lottery number picker</h1>
+		<ThemeToggle />
+	</header>
 	<p class="sub">
 		Hot, cold and overdue analysis across Canadian draws — then a set built from all three.
 	</p>
@@ -234,19 +275,35 @@
 		<section class="panel">
 			<h2>Set composition</h2>
 			<div class="row">
-				{#each BANDS as [key, label] (key)}
-					<label class="field">
-						<span>{label}</span>
-						<input
-							type="number"
-							min="0"
-							max={game.pick}
-							class="tiny"
-							value={recipe[key]}
-							onchange={(e) => setBand(key, +e.currentTarget.value)}
-						/>
-					</label>
-				{/each}
+				<div class="field">
+					<span>Strategy</span>
+					<div class="seg" role="group" aria-label="Strategy">
+						{#each STRATEGIES as s (s.id)}
+							<button aria-pressed={strategy === s.id} onclick={() => (strategy = s.id)}>
+								{s.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+			</div>
+			<p class="muted note" data-testid="strategy-blurb">{strategyInfo.blurb}</p>
+
+			<div class="row spaced">
+				{#if strategy === 'bands'}
+					{#each BANDS as [key, label] (key)}
+						<label class="field">
+							<span>{label}</span>
+							<input
+								type="number"
+								min="0"
+								max={game.pick}
+								class="tiny"
+								value={recipe[key]}
+								onchange={(e) => setBand(key, +e.currentTarget.value)}
+							/>
+						</label>
+					{/each}
+				{/if}
 
 				{#if grandAnalysis && game.bonusLabel}
 					<div class="field">
@@ -266,10 +323,15 @@
 					<input type="number" min="1" max="20" class="tiny" bind:value={lines} />
 				</label>
 
-				<button class="primary" onclick={roll} disabled={!recipeOk}>Generate</button>
+				<label class="check" title="Keep odd/even and low/high as even as the set length allows">
+					<input type="checkbox" bind:checked={balanced} />
+					<span>Balanced odd/even &amp; low/high</span>
+				</label>
+
+				<button class="primary" onclick={roll} disabled={!canGenerate}>Generate</button>
 			</div>
 
-			{#if !recipeOk}
+			{#if strategy === 'bands' && !recipeOk}
 				<p class="err note">
 					{game.name} draws {game.pick} numbers — your split adds up to {recipeTotal}.
 				</p>
@@ -295,12 +357,23 @@
 						<span class="meta">
 							{p.low} low / {p.numbers.length - p.low} high · {p.odd} odd · sum {p.sum}
 						</span>
+						<button
+							class="copy-one"
+							onclick={() => copy(i)}
+							aria-label={`Copy set ${i + 1}: ${formatPick(p)}`}
+							title={formatPick(p)}
+						>
+							{copied === i ? 'Copied' : 'Copy'}
+						</button>
 					</div>
 				{/each}
 				<div class="buttons spaced">
 					<button onclick={roll}>Generate again</button>
-					<button onclick={copy}>Copy</button>
+					<button onclick={() => copy('all')}>{copied === 'all' ? 'Copied!' : 'Copy all'}</button>
 				</div>
+				<p class="sr-only" aria-live="polite">
+					{copied === null ? '' : copied === 'all' ? 'All sets copied' : `Set ${copied + 1} copied`}
+				</p>
 				<p class="muted note">
 					Ball colour shows which band each number came from.
 					{#if grandAnalysis && game.bonusLabel}
@@ -429,6 +502,20 @@
 		</section>
 
 		<section>
+			<h2>Strategies</h2>
+			<dl>
+				{#each STRATEGIES as s (s.id)}
+					<dt>{s.label}</dt>
+					<dd>{s.blurb}</dd>
+				{/each}
+			</dl>
+			<p>
+				Any strategy can also be kept <strong>balanced</strong>: sets that lean too far towards odd
+				or even, or low or high numbers, are thrown out and drawn again.
+			</p>
+		</section>
+
+		<section>
 			<h2>Games covered</h2>
 			<ul class="games">
 				{#each GAMES as g (g.id)}
@@ -455,9 +542,35 @@
 </main>
 
 <style>
+	.top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
 	.buttons {
 		display: flex;
 		gap: 0.5rem;
+	}
+	.check {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.85rem;
+		padding-bottom: 0.45rem;
+		cursor: pointer;
+	}
+	.check input {
+		accent-color: var(--accent);
+	}
+	.copy-one {
+		margin-left: 0.75rem;
+		padding: 0.2rem 0.6rem;
+		font-size: 0.78rem;
+		min-width: 4.5rem;
+	}
+	.seg {
+		flex-wrap: wrap;
 	}
 	.spaced {
 		margin-top: 0.9rem;

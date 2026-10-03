@@ -1,6 +1,6 @@
 import adapter from '@sveltejs/adapter-netlify';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [
@@ -13,5 +13,9 @@ export default defineConfig({
 
 			adapter: adapter()
 		})
-	]
+	],
+	test: {
+		include: ['tests/unit/**/*.test.ts'],
+		environment: 'node'
+	}
 });
