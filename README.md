@@ -26,6 +26,25 @@ You pick which reading drives the bands, how far back to look (50, 100, 200 or
 500 draws, or the whole history), and how many hot, regular and cold numbers
 each set takes.
 
+### Strategies
+
+How a set is built from the analysis:
+
+| Strategy | How it picks |
+| --- | --- |
+| **Hot / cold bands** | A fixed number from each band. You choose the split. This is the default. |
+| **Weighted** | Every number can appear, weighted by how often it was drawn (frequency) or how long it has been away (overdue). |
+| **Companions** | Starts from a hot number, then keeps adding the numbers most often drawn in the same draw as the ones already chosen. |
+| **Quick pick** | Every number equally likely, ignoring the history. |
+
+Any strategy can be kept **balanced**: sets that lean too far odd or even, or
+low or high, are thrown out and drawn again (3–4 of 7, or exactly 3 of 6).
+
+Generated sets copy to the clipboard as `11 - 23 - 24 - 27 - 38 - 49`, one
+set at a time or all at once. The page has light, dark and system themes.
+
+### Daily Grand
+
 Daily Grand's grand number is drawn from its own 1–7 pool, so it gets a
 separate analysis and is picked as well. In the other games the bonus ball
 comes from the same pool as the main numbers, so there is nothing extra to
@@ -99,7 +118,8 @@ cached in Netlify Blobs, which Netlify provisions automatically.
 | `src/lib/games.ts` | Every game's rules. Add a game by appending an entry. |
 | `src/lib/parse.ts` | Turns scraped HTML or an uploaded file into `Draw[]`. |
 | `src/lib/stats.ts` | Frequency, gaps, ranks and bands. |
-| `src/lib/picker.ts` | Builds sets from the bands. |
+| `src/lib/picker.ts` | Builds sets with each strategy, and formats them for copying. |
+| `src/lib/theme.ts` | Light / dark / system theme. |
 | `src/lib/analytics.ts` | GA4 loader and event helper. |
 | `src/lib/server/` | Scraper and the Blobs-backed cache. |
 | `src/routes/api/draws/[game]/` | The endpoint the browser calls. |

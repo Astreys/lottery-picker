@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyse, bonusHistory, pool, type Band } from '$lib/stats';
+import { analyse, bonusHistory, pairCounts, pool, type Band } from '$lib/stats';
 import { avg, fixture } from './helpers';
 
 const draws = fixture('lotto-max');
@@ -65,6 +65,42 @@ describe('analyse', () => {
 		expect(tiny.byNumber.get(2)!.gapBand).toBe('hot');
 		expect(tiny.byNumber.get(3)!.gapBand).toBe('cold');
 		expect(tiny.stats.reduce((s, x) => s + x.count, 0)).toBe(2);
+	});
+});
+
+
+describe('pairCounts', () => {
+	it('counts each pair once per shared draw, symmetrically', () => {
+		const t = pairCounts(
+			[
+				{ date: '', numbers: [1, 2, 3], bonus: null },
+				{ date: '', numbers: [1, 2, 4], bonus: null },
+				{ date: '', numbers: [3, 4, 5], bonus: null }
+			],
+			5,
+			10
+		);
+		expect(t[1][2]).toBe(2);
+		expect(t[2][1]).toBe(2);
+		expect(t[1][3]).toBe(1);
+		expect(t[1][5]).toBe(0);
+		expect(t[3][3]).toBe(0);
+	});
+
+	it('only looks inside the window', () => {
+		const h = [
+			{ date: '', numbers: [1, 2], bonus: null },
+			{ date: '', numbers: [3, 4], bonus: null }
+		];
+		expect(pairCounts(h, 4, 1)[3][4]).toBe(0);
+		expect(pairCounts(h, 4, 2)[3][4]).toBe(1);
+	});
+
+	it('totals C(pick, 2) per draw on real history', () => {
+		const t = pairCounts(draws, MAX, 100);
+		let total = 0;
+		for (let i = 1; i <= MAX; i++) for (let j = i + 1; j <= MAX; j++) total += t[i][j];
+		expect(total).toBe(100 * 21);
 	});
 });
 
