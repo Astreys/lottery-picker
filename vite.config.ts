@@ -1,6 +1,6 @@
 import adapter from '@sveltejs/adapter-netlify';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [
@@ -13,5 +13,23 @@ export default defineConfig({
 
 			adapter: adapter()
 		})
-	]
+	],
+	test: {
+		include: ['tests/unit/**/*.test.ts'],
+		environment: 'node',
+		coverage: {
+			// Components and pages are covered by the Playwright suite in tests/e2e.
+			include: ['src/**/*.ts'],
+			exclude: ['src/**/*.d.ts', 'src/lib/index.ts']
+		},
+		environmentOptions: {
+			// The analytics test injects the gtag <script>; never actually fetch it.
+			happyDOM: {
+				settings: {
+					disableJavaScriptFileLoading: true,
+					handleDisabledFileLoadingAsSuccess: true
+				}
+			}
+		}
+	}
 });
