@@ -3,6 +3,7 @@
 	import { parseText, type Draw } from '$lib/parse';
 	import { analyse, bonusHistory, type Analysis } from '$lib/stats';
 	import { track } from '$lib/analytics';
+	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import {
 		defaultRecipe,
 		generateMany,
@@ -144,7 +145,10 @@
 </script>
 
 <main>
-	<h1>Lottery number picker</h1>
+	<header class="top">
+		<h1>Lottery number picker</h1>
+		<ThemeToggle />
+	</header>
 	<p class="sub">
 		Hot, cold and overdue analysis across Canadian draws — then a set built from all three.
 	</p>
@@ -455,6 +459,12 @@
 </main>
 
 <style>
+	.top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
 	.buttons {
 		display: flex;
 		gap: 0.5rem;
