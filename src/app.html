@@ -12,15 +12,6 @@
 		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f6f3" />
 		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171614" />
 
-		<!-- Apply a stored theme before first paint so the page never flashes the
-		     wrong one. Mirrors src/lib/theme.ts. -->
-		<script>
-			try {
-				var t = localStorage.getItem('theme');
-				if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
-			} catch (e) {}
-		</script>
-
 		<!-- The draw history is fetched from here on demand. -->
 		<link rel="preconnect" href="https://www.lotto-8.com" />
 

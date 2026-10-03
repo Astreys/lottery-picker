@@ -102,28 +102,6 @@ export function pool(a: Analysis, metric: 'freq' | 'gap', b: Band): number[] {
 }
 
 /**
- * How often each pair of numbers was drawn together inside the window.
- * `table[a][b] === table[b][a]`; row and column 0 are unused so numbers index
- * directly.
- */
-export type PairTable = number[][];
-
-export function pairCounts(draws: Draw[], max: number, window: number): PairTable {
-	const used = draws.slice(0, Math.max(1, Math.min(window, draws.length)));
-	const table = Array.from({ length: max + 1 }, () => new Array<number>(max + 1).fill(0));
-	for (const draw of used) {
-		const ns = draw.numbers.filter((n) => n >= 1 && n <= max);
-		for (let i = 0; i < ns.length; i++) {
-			for (let j = i + 1; j < ns.length; j++) {
-				table[ns[i]][ns[j]]++;
-				table[ns[j]][ns[i]]++;
-			}
-		}
-	}
-	return table;
-}
-
-/**
  * Recast a history as a one-number-per-draw history over the bonus pool, so
  * the same frequency/recency machinery can analyse it. Used by games whose
  * extra ball has its own pool — Daily Grand's grand number is 1–7, drawn
