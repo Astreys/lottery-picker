@@ -1,7 +1,14 @@
 {
 	"name": "lottery-picker",
 	"private": true,
-	"version": "0.0.1",
+	"version": "0.1.0",
+	"description": "Hot, cold and overdue number analysis for Canadian lottery draws.",
+	"author": "Sasha Chernyavsky",
+	"license": "PolyForm-Noncommercial-1.0.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Astreys/lottery-picker.git"
+	},
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",

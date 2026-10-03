@@ -1,60 +1,80 @@
-# Lottery number picker
+# Lottery Number Picker
 
-Personal tool for building Canadian lottery picks out of hot, cold and overdue
-numbers. Draw history comes straight from lotto-8.com, or from a text file.
+A small web app that analyses past Canadian lottery draws and builds number
+sets from hot, cold and overdue numbers.
 
 Games: Lotto Max, Lotto 6/49, Daily Grand, Lottario, Ontario 49, BC/49.
 
+Built with SvelteKit and deployed on Netlify.
+
+> **About the odds.** Lottery draws are independent. A number being hot, cold
+> or overdue tells you nothing about the next draw, and nothing here changes
+> the odds of any ticket. This is a tool for picking numbers in a way that
+> feels considered, not a system for winning. Please play responsibly.
+
 ## How it works
 
-Two independent readings of the same history sit side by side:
+Every number is measured two ways over the draws you choose to analyse, and
+both readings are shown side by side:
 
-- **Frequency** — how often a number came up in the analysis window. Top third
-  hot, bottom third cold.
-- **Recency** — how many draws since a number last appeared. Longest gaps are
-  the overdue (cold) end.
+- **Frequency**: how often a number came up in the analysis window. The top
+  third is hot, the bottom third cold, the rest regular.
+- **Recency**: how many draws since a number last appeared. The longest gaps
+  are the overdue (cold) end.
 
-You choose which reading drives the bands, how wide the window is (50 / 100 /
-200 / 500 / all), and how many hot, regular and cold numbers each set takes.
+You pick which reading drives the bands, how far back to look (50, 100, 200 or
+500 draws, or the whole history), and how many hot, regular and cold numbers
+each set takes.
 
-Games whose extra ball has its own pool get a second, independent analysis and
-their extra ball picked too. That is currently just Daily Grand — 5 main
-numbers from 1–49 plus a grand number from 1–7. Elsewhere the bonus ball is
-drawn from the same pool as the main numbers, so there is nothing extra to
-pick and none is shown.
+Daily Grand's grand number is drawn from its own 1–7 pool, so it gets a
+separate analysis and is picked as well. In the other games the bonus ball
+comes from the same pool as the main numbers, so there is nothing extra to
+pick.
 
-## Running it
+Draw history is fetched from [lotto-8.com](https://www.lotto-8.com) and cached
+for 12 hours. You can also upload a text file of past draws instead: one draw
+per line, numbers separated by anything.
 
-```
+## Getting started
+
+Requires Node.js 22 or newer.
+
+```sh
 npm install
 npm run dev      # http://localhost:5173
-npm test         # analysis + picker checks against a real fixture
+npm test         # analysis and picker checks against real fixtures
+npm run check    # type check
 npm run build
 ```
 
-## Analytics
+No configuration is needed to run it locally. Draw history is cached in
+memory when Netlify Blobs isn't available.
 
-Google Analytics 4 loads only when `PUBLIC_GA_ID` is set — copy `.env.example`
-to `.env` for local use, or set it under Site configuration → Environment
-variables on Netlify. With no ID configured nothing is loaded and no request is
-made to Google, and it is skipped in dev so local work stays out of the reports.
+## Configuration
 
-Beyond page views it records two custom events: `load_results` (game, cache or
-live, draw count) and `generate` (game, metric, window, number of sets, and the
-hot-regular-cold split).
+The only setting is optional:
 
-If the site ever goes anywhere beyond your own use, GA sets cookies and will
-want a consent banner under GDPR/PIPEDA. There is none here.
+| Variable | Purpose |
+| --- | --- |
+| `PUBLIC_GA_ID` | Google Analytics 4 measurement ID. Leave it unset to run with no analytics at all. |
+
+Copy `.env.example` to `.env` for local use, or set it under
+**Site configuration → Environment variables** on Netlify. Analytics is never
+loaded in dev.
+
+When analytics is enabled, it records page views and two custom events:
+`load_results` (game, cache or live, draw count) and `generate` (game, metric,
+window, number of sets, and the hot-regular-cold split). GA sets cookies, so if
+you deploy your own copy for the public, check whether you need a consent banner
+where you are (for example under GDPR or PIPEDA). This project doesn't ship one.
 
 ## Deploying
 
-Connect the repo to Netlify. Build command `npm run build`, publish directory
-`build` — both already set in `netlify.toml`. The only environment variable is
-the optional `PUBLIC_GA_ID` above; there are no external services to configure,
-since draw history is cached in Netlify Blobs, which is provisioned
-automatically. Local dev falls back to an in-memory cache.
+Connect the repository to Netlify. The build command (`npm run build`) and
+publish directory (`build`) are already set in `netlify.toml`. Draw history is
+cached in Netlify Blobs, which Netlify provisions automatically.
 
-## Layout
+## Project layout
 
 | Path | What it holds |
 | --- | --- |
@@ -65,17 +85,27 @@ automatically. Local dev falls back to an in-memory cache.
 | `src/lib/analytics.ts` | GA4 loader and event helper. |
 | `src/lib/server/` | Scraper and the Blobs-backed cache. |
 | `src/routes/api/draws/[game]/` | The endpoint the browser calls. |
+| `tests/` | Checks and fixtures of real draw history. |
 | `reference/index-v0.html` | The original single-file prototype. |
 
-## Adding a game
+### Adding a game
 
-Append to `GAMES` in `src/lib/games.ts` — id, display name, the lotto-8.com
-page, how many numbers are drawn and the top of the range. Nothing else needs
-to change; the parser and UI are driven entirely by that list.
+Append an entry to `GAMES` in `src/lib/games.ts`: id, display name, the
+lotto-8.com page, how many numbers are drawn, and the top of the range. The
+parser and UI read everything from that list, so nothing else needs to change.
 
-## A note on the odds
+## Disclaimer
 
-Lottery draws are independent. A number being hot, cold or overdue tells you
-nothing about the next draw, and no arrangement of these bands changes the odds
-of any ticket. This is a tool for picking numbers in a way that feels
-considered, not a tool for winning.
+This is an independent hobby project. It is not affiliated with, endorsed by
+or connected to OLG, BCLC, Loto-Québec, the Interprovincial Lottery Corporation
+or lotto-8.com. Draw results are shown as published by a third-party source and
+may contain errors. Always check results with the official lottery operator.
+
+## License
+
+Copyright © 2026 Sasha Chernyavsky.
+
+Released under the [PolyForm Noncommercial License 1.0.0](LICENSE). You're free
+to read, learn from, fork, run and modify this project for any noncommercial
+purpose. **Commercial use requires a separate license.** For one, contact
+Sasha Chernyavsky via [GitHub](https://github.com/Astreys).
